@@ -24,8 +24,26 @@ def root():
 @app.route('/get_rows/<schemaname>/<tablename>', methods=['GET'])
 def get_rows(schemaname,tablename):
     #Initialize your connection
+    querylimit=0
+    since=0
+    query=""
+
     try:
-        query = "SELECT * FROM " + schemaname + "." + tablename
+        querylimit=int(request.args.get('limit',''))
+        since=int(request.args.get('since',''))
+
+        print("Get me {}".format(querylimit)+" rows since {}".format(since))
+
+        if querylimit>0:
+            if since>0:
+                query = "SELECT * FROM " + schemaname + "." + tablename + " limit " + "{}".format(querylimit) + " offset " + "{}".format(since)
+            else:
+                query = "SELECT * FROM " + schemaname + "." + tablename + " limit " + "{}".format(querylimit)
+        else:
+            query = "SELECT * FROM " + schemaname + "." + tablename
+
+
+        print(query)
 
         conn = dbapi.connect(
             address=HANA_IP,
