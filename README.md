@@ -14,13 +14,10 @@ Example microservice config:
   "docker": {
     "environment": {
       "HANA_IP": "10.1.2.3",
-      "HANA_PORT": "39015"
+      "HANA_PORT": "39015",
       "HANA_USER": "$ENV(hana_user)",
       "HANA_PASS": "$SECRET(hana_psas)",
-      "HANA_SCHEMA": "SYSTEM",
-      "LOG_LEVEL": "DEBUG",
-      "SESAM-API": "https://datahub-xxxxxxxx.sesam.cloud/api/",
-      "SESAM-JWT": "$SECRET(own-jwt)"
+      "LOG_LEVEL": "DEBUG"
     },
     "image": "<docker repo>",
     "memory": 128,
@@ -33,4 +30,27 @@ Example microservice config:
   "use_https": false,
   "verify_ssl": true
 }
+```
+Example pipe config:
+--------------------
+```
+{
+  "_id": "hana-pipe",
+  "type": "pipe",
+  "source": {
+    "type": "json",
+    "system": "sap-hana-service",
+    "url": "/get_rows/<schema>/<table>"
+  },
+  "transform": {
+    "type": "dtl",
+    "rules": {
+      "default": [
+        ["add", "_id", "_S.<primary_key>"],
+        ["copy", "*"]
+      ]
+    }
+  }
+}
+
 ```
