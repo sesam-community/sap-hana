@@ -35,7 +35,7 @@ def get_rows(schemaname,tablename):
             user=HANA_USER,
             password=HANA_PASS
         )
-        print("Connected to Hana, running query {}".format(query))
+        logger.info("Connected to Hana, running query {}".format(query))
     except:
         return Response(status=403)
 
@@ -43,7 +43,7 @@ def get_rows(schemaname,tablename):
         querylimit=int(request.args.get('limit',''))
         since=int(request.args.get('since',''))
 
-        print("Get me {}".format(querylimit)+" rows since {}".format(since))
+        logger.info("Get me {}".format(querylimit)+" rows since {}".format(since))
 
         if querylimit>0:
             if since>0:
@@ -54,7 +54,7 @@ def get_rows(schemaname,tablename):
             query = "SELECT * FROM " + schemaname + "." + tablename
 
 
-        print(query)
+        logger.info(query)
 
         ### rest of your code here ###
         cursor = conn.cursor()
