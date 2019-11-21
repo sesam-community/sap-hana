@@ -24,8 +24,6 @@ def root():
 @app.route('/get_rows/<schemaname>/<tablename>', methods=['GET'])
 def get_rows(schemaname,tablename):
     #Initialize your connection
-    querylimit=0
-    since=0
     query=""
 
     try:
@@ -40,18 +38,7 @@ def get_rows(schemaname,tablename):
         return Response(status=403)
 
     try:
-        querylimit=int(request.args.get('limit',''))
-        since=int(request.args.get('since',''))
-
-        logger.info("Get me {}".format(querylimit)+" rows since {}".format(since))
-
-        if querylimit>0:
-            if since>0:
-                query = "SELECT * FROM " + schemaname + "." + tablename + " limit " + "{}".format(querylimit) + " offset " + "{}".format(since)
-            else:
-                query = "SELECT * FROM " + schemaname + "." + tablename + " limit " + "{}".format(querylimit)
-        else:
-            query = "SELECT * FROM " + schemaname + "." + tablename
+        query = "SELECT * FROM " + schemaname + "." + tablename
 
 
         logger.info(query)
