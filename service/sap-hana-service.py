@@ -29,6 +29,17 @@ def get_rows(schemaname,tablename):
     query=""
 
     try:
+        conn = dbapi.connect(
+            address=HANA_IP,
+            port=HANA_PORT,
+            user=HANA_USER,
+            password=HANA_PASS
+        )
+        print("Connected to Hana, running query {}".format(query))
+    except:
+        return Response(status=403)
+
+    try:
         querylimit=int(request.args.get('limit',''))
         since=int(request.args.get('since',''))
 
@@ -44,14 +55,6 @@ def get_rows(schemaname,tablename):
 
 
         print(query)
-
-        conn = dbapi.connect(
-            address=HANA_IP,
-            port=HANA_PORT,
-            user=HANA_USER,
-            password=HANA_PASS
-        )
-        print("Connected to Hana, running query {}".format(query))
 
         ### rest of your code here ###
         cursor = conn.cursor()
