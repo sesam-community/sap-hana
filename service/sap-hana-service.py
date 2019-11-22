@@ -58,12 +58,11 @@ def get_rows(schemaname,tablename):
                 entity[column_names[i]]="{}".format(result[i])
             yield json.dumps(entity)
 
+        cursor.close()
         yield "]"
 
-        cursor.close()
-
     try:
-        return Response(status=200, response=emit_rows(conn,query))
+        return Response(emit_rows(conn,query),status=200, mimetype='application/json')
     except:
         return Response(status=500)
 
