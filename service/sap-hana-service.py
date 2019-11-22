@@ -56,7 +56,7 @@ def get_rows(schemaname,tablename):
             entity = {}
             for i in range(len(result)):
                 entity[column_names[i]]="{}".format(result[i])
-            yield entity
+            yield json.dumps(entity)
 
         yield "]"
 
