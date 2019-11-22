@@ -24,7 +24,8 @@ def root():
 @app.route('/get_rows/<schemaname>/<tablename>', methods=['GET'])
 def get_rows(schemaname,tablename):
     #Initialize your connection
-    query=""
+    query = "SELECT * FROM " + schemaname + "." + tablename
+    logger.info(query)
 
     try:
         conn = dbapi.connect(
@@ -37,31 +38,32 @@ def get_rows(schemaname,tablename):
     except:
         return Response(status=403)
 
-    try:
-        query = "SELECT * FROM " + schemaname + "." + tablename
-
-
-        logger.info(query)
+    def emit_rows(connection,querystring):
+        yield "["
 
         ### rest of your code here ###
-        cursor = conn.cursor()
-        cursor.execute(query)
-
-        table_rows = []
+        cursor = connection.cursor()
+        cursor.execute(querystring)
+    
         column_names = []
-        
-        #cursor.description is tuples with the names and column parameters, we just need column name
+
+        #get property names. cursor.description is tuples with the names and column parameters, we just need column name
         for i in range(len(cursor.description)):
           desc = cursor.description[i]
           column_names.append("{}".format(desc[0]))
-
+    
         for result in cursor:
             entity = {}
             for i in range(len(result)):
                 entity[column_names[i]]="{}".format(result[i])
-            table_rows.append(entity)
+            yield entity
+
+        yield "]"
+
         cursor.close()
-        return Response(status=200, response=json.dumps(table_rows))
+
+    try:
+        return Response(status=200, response=emit_rows(conn,query))
     except:
         return Response(status=500)
 
