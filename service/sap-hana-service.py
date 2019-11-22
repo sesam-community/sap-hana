@@ -51,9 +51,17 @@ def get_rows(schemaname,tablename):
         for i in range(len(cursor.description)):
           desc = cursor.description[i]
           column_names.append("{}".format(desc[0]))
-    
+
+        is_first = true
+
         for result in cursor:
+            if (is_first):
+                is_first = false
+            else:
+                yield ","
+            
             entity = {}
+            
             for i in range(len(result)):
                 entity[column_names[i]]="{}".format(result[i])
             yield json.dumps(entity)
