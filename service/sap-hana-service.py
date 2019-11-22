@@ -52,11 +52,11 @@ def get_rows(schemaname,tablename):
           desc = cursor.description[i]
           column_names.append("{}".format(desc[0]))
 
-        is_first = true
+        is_first = True
 
         for result in cursor:
             if (is_first):
-                is_first = false
+                is_first = False
             else:
                 yield ","
             
