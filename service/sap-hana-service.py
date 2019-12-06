@@ -74,6 +74,35 @@ def get_rows(schemaname,tablename):
     except:
         return Response(status=500)
 
+@app.route('/put_rows/<schemaname>/<tablename>', methods=['POST'])
+def put_rows(schemaname,tablename):
+    # get entities from request
+    entities = request.get_json()
+
+    # get column names from sesam data set
+    columns = []
+    columns_text = '('
+    for key,val in entities[0].items():
+        if(key[0]!='_'):
+            columns_text = columns_text + key + ','
+            columns.append(key)
+    columns_text = columns_text[:-1] + ')'
+
+    query = "INSERT INTO " + schemaname + "." + tablename + " " + columns_text + " VALUES "
+
+    row_data = '('
+    # create rows
+    for entity in entities:
+        row_data = row_data + '('
+        for column in columns:
+            row_data = row_data + "{}".format(entity[column]) + ','
+        row_data = row_data[:-1] + '),'
+    row_data = row_data[:-1] + ')'
+    print(row_data)
+    logger.info(query)
+
+    return Response(status=200)
+
 
 if __name__ == '__main__':
     format_string = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
