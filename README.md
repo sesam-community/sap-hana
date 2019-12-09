@@ -15,15 +15,13 @@ Example microservice config:
     "environment": {
       "HANA_IP": "10.1.2.3",
       "HANA_PORT": "39015",
-      "HANA_USER": "$ENV(hana_user)",
+      "HANA_USER": "<username>",
       "HANA_PASS": "$SECRET(hana_psas)",
       "LOG_LEVEL": "DEBUG"
     },
-    "image": "<docker repo>",
+    "image": "sesamcommunity/sap-hana:0.1.0",
     "memory": 128,
-    "password": "<password>",
-    "port": 5001,
-    "username": "<username>"
+    "port": 5001
   },
   "read_timeout": 7200,
   "type": "system:microservice",
