@@ -36,6 +36,7 @@ def get_rows(schemaname,tablename):
         )
         logger.info("Connected to Hana, running query {}".format(query))
     except:
+        logger.info("Couldn't connect to Hana")
         return Response(status=403)
 
     def emit_rows(connection,querystring):
@@ -76,10 +77,34 @@ def get_rows(schemaname,tablename):
 
 @app.route('/put_rows/<schemaname>/<tablename>', methods=['POST'])
 def put_rows(schemaname,tablename):
+    try:
+        conn = dbapi.connect(
+            address=HANA_IP,
+            port=HANA_PORT,
+            user=HANA_USER,
+            password=HANA_PASS
+        )
+        logger.info("Connected to Hana")
+    except:
+        logger.info("Couldn't connect to Hana")
+        return Response(status=403)
+
+    # get table keys from database for deletes
+    keys_query = "SELECT COLUMN_NAME FROM CONSTRAINTS WHERE SCHEMA_NAME = upper('" + schemaname + "') AND TABLE_NAME = upper('" + tablename + "') AND IS_PRIMARY_KEY = 'TRUE' ORDER BY POSITION ASC;"
+    cursor_keys = conn.cursor()
+    cursor_keys.execute(keys_query)
+    table_keys = []
+    for table_key in cursor_keys:
+        table_keys.append(table_key[0])
+    cursor_keys.close()
+    
+    logger.info("Detected primary keys from hana table: " + "{}".format(table_keys))
+
     # get entities from request
     entities = request.get_json()
 
     # get column names from sesam data set
+    # need a text version for the query string, and a list for the row iterator
     columns = []
     columns_text = '('
     for key,val in entities[0].items():
@@ -88,20 +113,61 @@ def put_rows(schemaname,tablename):
             columns.append(key)
     columns_text = columns_text[:-1] + ')'
 
-    query = "INSERT INTO " + schemaname + "." + tablename + " " + columns_text + " VALUES "
-
-    row_data = '('
-    # create rows
+    row_data = ()
+    deleted_ids = {}
     for entity in entities:
-        row_data = row_data + '('
+        row_temp = ()
         for column in columns:
-            row_data = row_data + "{}".format(entity[column]) + ','
-        row_data = row_data[:-1] + '),'
-    row_data = row_data[:-1] + ')'
-    print(row_data)
-    logger.info(query)
+            row_temp = row_temp + (entity[column],)
+        row_data = row_data + (row_temp,)
+        # stores the last known state of the _deleted property - so we can delete after upserts are completed.
+        temp_delete_dict = {}
+        temp_delete_dict['_deleted'] = entity['_deleted']
+        for del_key in table_keys:
+            temp_delete_dict[del_key] = entity[del_key]
+        deleted_ids[entity['_id']] = temp_delete_dict
 
-    return Response(status=200)
+    delete_data = ()
+    for deleted in deleted_ids:
+        delete_temp = ()
+        if(deleted_ids[deleted]['_deleted']==True):
+            for key in table_keys:
+                delete_temp = delete_temp + (deleted_ids[deleted][key],)
+            delete_data = delete_data + (delete_temp,)
+
+    # Set up a parameterized SQL INSERT
+    parms = ("?," * len(row_data[0]))[:-1]
+    query = "UPSERT " + schemaname + "." + tablename + " " + columns_text + " VALUES (%s) WITH PRIMARY KEY;" % (parms)
+
+    # Set up parameterized SQL DELETE keys in WHERE conditional
+    key_conditional = ''
+    isFirst = True
+    for key_col in table_keys:
+        if(isFirst):
+            isFirst = False
+        else:
+            key_conditional = key_conditional + "AND "
+        key_conditional = key_conditional + key_col + " = ? "
+
+    delete_query = "DELETE FROM " + schemaname + "." + tablename + " WHERE " + key_conditional
+
+    try:
+        ## upsert rows into hana
+        logger.info("Running upserts: " + query)
+        cursor = conn.cursor()
+        cursor.executemany(query, row_data)
+        cursor.close()
+
+        ## upsert rows into hana
+        logger.info("Running deletes: " + delete_query)
+        cursor_del = conn.cursor()
+        cursor_del.executemany(delete_query, delete_data)
+        cursor_del.close()
+
+        return Response(status=200)
+
+    except:
+        return Response(status=500)
 
 
 if __name__ == '__main__':
