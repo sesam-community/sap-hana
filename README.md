@@ -29,7 +29,7 @@ Example microservice config:
   "verify_ssl": true
 }
 ```
-Example pipe config:
+Example get_rows pipe config:
 --------------------
 ```
 {
@@ -52,3 +52,28 @@ Example pipe config:
 }
 
 ```
+Example get_rows pipe config:
+--------------------
+```
+{
+  "_id": "hana-write",
+  "type": "pipe",
+  "source": {
+    "type": "dataset",
+    "dataset": "sesam-test-hana"
+  },
+  "sink": {
+    "type": "json",
+    "system": "sap-hana-service",
+    "batch_size": 1000,
+    "url": "/put_rows/<schema>/<table>"
+  },
+  "batch_size": 1000
+}
+
+```
+
+# Extra info
+Note that SAP Hana tables can have the '/' character which breaks the URL endpoint path for the table segment. This MS handles this by converting the '|' to '/' character, so simply replace the '/'s in the pipe url string with '|'s.
+
+The put_rows function requires the pipe to produce the properties exactly as the table expects. This is usually case sensitive and the default is upper case. The service does upserts and expects the primary key(s) to be correct. This is also requried for the deletes to work correctly.
