@@ -107,7 +107,7 @@ def put_rows(schemaname,tablename):
 
     # get entities from request
     entities = request.get_json()
-
+    print("{}".format(entities))
     if(len(entities)==0):
         return Response(status=200)
     # get column names from sesam data set
@@ -135,6 +135,11 @@ def put_rows(schemaname,tablename):
         for del_key in table_keys:
             temp_delete_dict[del_key] = entity[del_key]
         deleted_ids[entity['_id']] = temp_delete_dict
+
+    print(row_data)
+    for row in row_data:
+        for i in row:
+            print("{}".format(type(i)) + " " + i)
 
     delete_data = ()
     for deleted in deleted_ids:
