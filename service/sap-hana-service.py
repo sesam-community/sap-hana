@@ -76,7 +76,8 @@ def get_rows(schemaname,tablename):
 
     try:
         return Response(emit_rows(conn,query),status=200, mimetype='application/json')
-    except:
+    except dbapi.Error as exc:
+        logger.error("Error from Hana: %s", exc)
         return Response(status=500)
 
 @app.route('/put_rows/<schemaname>/<tablename>', methods=['POST'])
@@ -107,7 +108,7 @@ def put_rows(schemaname,tablename):
 
     # get entities from request
     entities = request.get_json()
-    print("{}".format(entities))
+    #print("{}".format(entities))
     if(len(entities)==0):
         return Response(status=200)
     # get column names from sesam data set
@@ -136,10 +137,10 @@ def put_rows(schemaname,tablename):
             temp_delete_dict[del_key] = entity[del_key]
         deleted_ids[entity['_id']] = temp_delete_dict
 
-    print(row_data)
-    for row in row_data:
-        for i in row:
-            print("{}".format(type(i)) + " " + i)
+#    print(row_data)
+#    for row in row_data:
+#        for i in row:
+#            print("{}".format(type(i)) + " " + i)
 
     delete_data = ()
     for deleted in deleted_ids:
@@ -162,7 +163,11 @@ def put_rows(schemaname,tablename):
             cursor.close()
         else:
             logger.info("No new rows")
+    except dbapi.Error as exc:
+        logger.error("Error from Hana: %s", exc)
+        return Response(status=500)
 
+    try:
         # Set up parameterized SQL DELETE keys in WHERE conditional
         if(len(delete_data)!=0):
             key_conditional = ''
@@ -186,7 +191,8 @@ def put_rows(schemaname,tablename):
 
         return Response(status=200)
 
-    except:
+    except dbapi.Error as exc:
+        logger.error("Error from Hana: %s", exc)
         return Response(status=500)
 
 
