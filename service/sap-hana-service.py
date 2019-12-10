@@ -105,6 +105,8 @@ def put_rows(schemaname,tablename):
     # get entities from request
     entities = request.get_json()
 
+    if(len(entities)==0):
+        return Response(status=200)
     # get column names from sesam data set
     # need a text version for the query string, and a list for the row iterator
     columns = []
