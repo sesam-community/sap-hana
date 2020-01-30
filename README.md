@@ -52,7 +52,7 @@ Example get_rows pipe config:
 }
 
 ```
-Example get_rows pipe config:
+Example put_rows pipe config:
 --------------------
 ```
 {
