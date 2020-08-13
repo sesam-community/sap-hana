@@ -4,7 +4,6 @@ import cherrypy
 import json
 import logging
 import paste.translogger
-#import requests
 from hdbcli import dbapi
 
 app = Flask(__name__)
@@ -17,14 +16,90 @@ HANA_USER = os.environ.get("HANA_USER", "")
 HANA_PASS = os.environ.get("HANA_PASS", "")
 HANA_PORT = os.environ.get("HANA_PORT", "39015")
 
+
 @app.route('/', methods=['GET'])
 def root():
-    return Response(status=200, response="Working.")
+    return Response(status=200, response="Successfully connected with Microservice.")
+
+# Spend and risk spend per country
+# http://localhost:5001/query?since_expression=%220FISCYEAR%22%20||%20%22VENDOR%22%20||%20%22VENDOR_COUNTRY%22&query=SELECT%20*%20FROM%20%22_SYS_BIC%22.%22D1.GP.PMI/CV_FAC_GPXXP_GLMI01_SUS_SPEND%22%20WHERE%20%22SPEND_NET_EUR_HIGH_SRISK%22%20%3E%200%20AND%20%22VENDOR%22%20!=%20%27%27
+
+# Spend per Material Group in current fiscal year:
+# localhost:5001/query?since_expression="0FISCYEAR" || "0VENDOR" || "0MATL_GROUP"&query=SELECT * FROM "_SYS_BIC"."D1.GP.PMI/CV_FAC_SUPPLIER_SUBCATEGORY" WHERE "0MATL_GROUP" != '' AND "0VENDOR" != '' AND "SPEND_NET_EUR" > 0 AND "0FISCYEAR" = YEAR(NOW())-1
+@app.route('/query', methods=['GET'])
+def get_rows():
+
+    raw_query = request.args.get('query', "SELECT 1")
+    limit = request.args.get('limit', '1000')
+    since = request.args.get('since', "0")
+    since_expression = request.args.get('since_expression', "'0'")
+
+    if(since == ''):
+        since_clause = 'TRUE'
+    else:
+        since_clause = "'' || " + since_expression + " >= '" + since + "'"
+
+    query = "SELECT " + since_expression + \
+        " AS \"_updated\", * FROM (" + raw_query + ") \"T\" WHERE " + \
+        since_clause + " ORDER BY 1 LIMIT " + limit + ";"
+    logger.info(query)
+
+    try:
+        conn = dbapi.connect(
+            address=HANA_IP,
+            port=HANA_PORT,
+            user=HANA_USER,
+            password=HANA_PASS
+        )
+        logger.info("Connected to Hana")
+    except:
+        logger.info("Couldn't connect to Hana")
+        return Response(status=403)
+
+    def emit_rows(connection, querystring):
+        logger.info("Running query {}".format(querystring))
+
+        yield "["
+
+        ### rest of your code here ###
+        cursor = connection.cursor()
+        cursor.execute(querystring)
+
+        column_names = []
+
+        # get property names. cursor.description is tuples with the names and column parameters, we just need column name
+        for i in range(len(cursor.description)):
+            desc = cursor.description[i]
+            column_names.append("{}".format(desc[0]))
+
+        is_first = True
+
+        for result in cursor:
+            if (is_first):
+                is_first = False
+            else:
+                yield ","
+
+            entity = {}
+
+            for i in range(len(result)):
+                entity[column_names[i]] = "{}".format(result[i])
+            yield json.dumps(entity)
+
+        cursor.close()
+        yield "]"
+
+    try:
+        return Response(emit_rows(conn, query), status=200, mimetype='application/json')
+    except dbapi.Error as exc:
+        logger.error("Error from Hana: %s", exc)
+        return Response(status=500)
+
 
 @app.route('/get_rows/<schemaname>/<tablename>', methods=['GET'])
-def get_rows(schemaname,tablename):
-    #Initialize your connection
-    tablename = tablename.replace('|','/')
+def get_rows(schemaname, tablename):
+    # Initialize your connection
+    tablename = tablename.replace('|', '/')
 
     query = "SELECT * FROM " + schemaname + "." + tablename
     logger.info(query)
@@ -41,7 +116,7 @@ def get_rows(schemaname,tablename):
         logger.info("Couldn't connect to Hana")
         return Response(status=403)
 
-    def emit_rows(connection,querystring):
+    def emit_rows(connection, querystring):
         logger.info("Running query {}".format(querystring))
 
         yield "["
@@ -49,13 +124,13 @@ def get_rows(schemaname,tablename):
         ### rest of your code here ###
         cursor = connection.cursor()
         cursor.execute(querystring)
-    
+
         column_names = []
 
-        #get property names. cursor.description is tuples with the names and column parameters, we just need column name
+        # get property names. cursor.description is tuples with the names and column parameters, we just need column name
         for i in range(len(cursor.description)):
-          desc = cursor.description[i]
-          column_names.append("{}".format(desc[0]))
+            desc = cursor.description[i]
+            column_names.append("{}".format(desc[0]))
 
         is_first = True
 
@@ -64,25 +139,26 @@ def get_rows(schemaname,tablename):
                 is_first = False
             else:
                 yield ","
-            
+
             entity = {}
-            
+
             for i in range(len(result)):
-                entity[column_names[i]]="{}".format(result[i])
+                entity[column_names[i]] = "{}".format(result[i])
             yield json.dumps(entity)
 
         cursor.close()
         yield "]"
 
     try:
-        return Response(emit_rows(conn,query),status=200, mimetype='application/json')
+        return Response(emit_rows(conn, query), status=200, mimetype='application/json')
     except dbapi.Error as exc:
         logger.error("Error from Hana: %s", exc)
         return Response(status=500)
 
+
 @app.route('/put_rows/<schemaname>/<tablename>', methods=['POST'])
-def put_rows(schemaname,tablename):
-    tablename = tablename.replace('|','/')
+def put_rows(schemaname, tablename):
+    tablename = tablename.replace('|', '/')
     try:
         conn = dbapi.connect(
             address=HANA_IP,
@@ -96,27 +172,30 @@ def put_rows(schemaname,tablename):
         return Response(status=403)
 
     # get table keys from database for deletes
-    keys_query = "SELECT COLUMN_NAME FROM CONSTRAINTS WHERE SCHEMA_NAME = upper('" + schemaname + "') AND TABLE_NAME = upper('" + tablename + "') AND IS_PRIMARY_KEY = 'TRUE' ORDER BY POSITION ASC;"
+    keys_query = "SELECT COLUMN_NAME FROM CONSTRAINTS WHERE SCHEMA_NAME = upper('" + schemaname + \
+        "') AND TABLE_NAME = upper('" + tablename + \
+        "') AND IS_PRIMARY_KEY = 'TRUE' ORDER BY POSITION ASC;"
     cursor_keys = conn.cursor()
     cursor_keys.execute(keys_query)
     table_keys = []
     for table_key in cursor_keys:
         table_keys.append(table_key[0])
     cursor_keys.close()
-    
-    logger.info("Detected primary keys from hana table: " + "{}".format(table_keys))
+
+    logger.info("Detected primary keys from hana table: " +
+                "{}".format(table_keys))
 
     # get entities from request
     entities = request.get_json()
-    #print("{}".format(entities))
-    if(len(entities)==0):
+    # print("{}".format(entities))
+    if(len(entities) == 0):
         return Response(status=200)
     # get column names from sesam data set
     # need a text version for the query string, and a list for the row iterator
     columns = []
     columns_text = '('
-    for key,val in entities[0].items():
-        if(key[0]!='_'):
+    for key, val in entities[0].items():
+        if(key[0] != '_'):
             columns_text = columns_text + key + ','
             columns.append(key)
     columns_text = columns_text[:-1] + ')'
@@ -125,7 +204,7 @@ def put_rows(schemaname,tablename):
     deleted_ids = {}
     for entity in entities:
         # add to data to insert if not a delete
-        if(entity['_deleted']==False):
+        if(entity['_deleted'] == False):
             row_temp = ()
             for column in columns:
                 row_temp = row_temp + (entity[column],)
@@ -145,19 +224,21 @@ def put_rows(schemaname,tablename):
     delete_data = ()
     for deleted in deleted_ids:
         delete_temp = ()
-        if(deleted_ids[deleted]['_deleted']==True):
+        if(deleted_ids[deleted]['_deleted'] == True):
             for key in table_keys:
                 delete_temp = delete_temp + (deleted_ids[deleted][key],)
             delete_data = delete_data + (delete_temp,)
 
     try:
-        # Set up a parameterized SQL 
-        if(len(row_data)!=0):
+        # Set up a parameterized SQL
+        if(len(row_data) != 0):
             parms = ("?," * len(row_data[0]))[:-1]
-            query = "UPSERT " + schemaname + "." + tablename + " " + columns_text + " VALUES (%s) WITH PRIMARY KEY;" % (parms)
-    
-            ## upsert rows into hana
-            logger.info("Running " + "{}".format(len(row_data)) + " upserts: " + query)
+            query = "UPSERT " + schemaname + "." + tablename + " " + \
+                columns_text + " VALUES (%s) WITH PRIMARY KEY;" % (parms)
+
+            # upsert rows into hana
+            logger.info("Running " + "{}".format(len(row_data)) +
+                        " upserts: " + query)
             cursor = conn.cursor()
             cursor.executemany(query, row_data)
             cursor.close()
@@ -169,7 +250,7 @@ def put_rows(schemaname,tablename):
 
     try:
         # Set up parameterized SQL DELETE keys in WHERE conditional
-        if(len(delete_data)!=0):
+        if(len(delete_data) != 0):
             key_conditional = ''
             isFirst = True
             for key_col in table_keys:
@@ -178,11 +259,13 @@ def put_rows(schemaname,tablename):
                 else:
                     key_conditional = key_conditional + "AND "
                 key_conditional = key_conditional + key_col + " = ? "
-        
-            delete_query = "DELETE FROM " + schemaname + "." + tablename + " WHERE " + key_conditional
 
-            ## upsert rows into hana
-            logger.info("Running " + "{}".format(len(delete_data)) + " deletes: " + delete_query)
+            delete_query = "DELETE FROM " + schemaname + \
+                "." + tablename + " WHERE " + key_conditional
+
+            # upsert rows into hana
+            logger.info("Running " + "{}".format(len(delete_data)
+                                                 ) + " deletes: " + delete_query)
             cursor_del = conn.cursor()
             cursor_del.executemany(delete_query, delete_data)
             cursor_del.close()
@@ -226,5 +309,3 @@ if __name__ == '__main__':
     # Start the CherryPy WSGI web server
     cherrypy.engine.start()
     cherrypy.engine.block()
-
-

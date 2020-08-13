@@ -1,9 +1,55 @@
 # Introduction 
+
 This package integrates SAP Hana with Sesam and implements the Sesam protocol for reading tables from SAP Hana
+
+# Usage
+
+The endpoint [GET] /query has no required arguments and will simply query the SAP HANA using SELECT 1. This can be used to check whether a connection is successfully established.
+If you pass a SQL-Query don't worry about pagination. From the arguments given the following final query is constructed:
+
+```
+  SELECT
+    <since_expression> AS _updated,
+    *
+  FROM (<raw_query>) T
+  WHERE <since_expression> >= <since>
+  ORDER BY _updated
+LIMIT <limit>
+```
+
+Example GET arguments:
+
+```
+  {
+    "since_expression": "DateUpdated",
+    "query": "SELECT * FROM T WHERE T.spend > 100000",
+    "limit": 1000,
+    "since": "2020-11-12"
+  }
+```
+
+query
+-----
+
+Query the data in plain SQL you are interested in. Pagination etc. will be handled separately.
+
+limit
+-----
+
+Batch size, used for querying and returning the data in an paginated, Sesam compatible way.
+
+since_expression
+----------------
+
+The Sesam-Pull protocol requires a since-attribute that acts as a last-updated attribute. It does not need to be a timestamp, any orderable attribute or SQL-expression will do. Examples: since_expression="UpdatedAt" or since_expression="0FISCYEAR" || "VENDOR" || "VENDOR_COUNTRY"
+
+since
+-----
+
+Skip values that come before the given value when compared with <since_expression>. Together with limit this argument is used for querying and returning the data in an paginated, Sesam compatible way.
 
 # Getting Started
 This guide presumes knowledge about Databases, SQL and queries
-
 
 Example microservice config:
 ---------------------------
@@ -29,6 +75,7 @@ Example microservice config:
   "verify_ssl": true
 }
 ```
+
 Example get_rows pipe config:
 --------------------
 ```
@@ -53,7 +100,7 @@ Example get_rows pipe config:
 
 ```
 Example put_rows pipe config:
---------------------
+----------------------------
 ```
 {
   "_id": "hana-write",
