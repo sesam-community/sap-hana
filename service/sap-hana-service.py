@@ -21,14 +21,9 @@ HANA_PORT = os.environ.get("HANA_PORT", "39015")
 def root():
     return Response(status=200, response="Successfully connected with Microservice.")
 
-# Spend and risk spend per country
-# http://localhost:5001/query?since_expression=%220FISCYEAR%22%20||%20%22VENDOR%22%20||%20%22VENDOR_COUNTRY%22&query=SELECT%20*%20FROM%20%22_SYS_BIC%22.%22D1.GP.PMI/CV_FAC_GPXXP_GLMI01_SUS_SPEND%22%20WHERE%20%22SPEND_NET_EUR_HIGH_SRISK%22%20%3E%200%20AND%20%22VENDOR%22%20!=%20%27%27
 
-# Spend per Material Group in current fiscal year:
-# localhost:5001/query?since_expression="0FISCYEAR" || "0VENDOR" || "0MATL_GROUP"&query=SELECT * FROM "_SYS_BIC"."D1.GP.PMI/CV_FAC_SUPPLIER_SUBCATEGORY" WHERE "0MATL_GROUP" != '' AND "0VENDOR" != '' AND "SPEND_NET_EUR" > 0 AND "0FISCYEAR" = YEAR(NOW())-1
 @app.route('/query', methods=['GET'])
-def get_rows():
-
+def get_query():
     raw_query = request.args.get('query', "SELECT 1")
     limit = request.args.get('limit', '1000')
     since = request.args.get('since', "0")
