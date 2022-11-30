@@ -1,3 +1,5 @@
+[![SesamCommunity CI&CD](https://github.com/sesam-community/sap-hana/actions/workflows/sesam-community-ci-cd.yml/badge.svg)](https://github.com/sesam-community/sap-hana/actions/workflows/sesam-community-ci-cd.yml)
+
 # Introduction 
 
 This package integrates SAP Hana with Sesam and implements the Sesam protocol for reading tables from SAP Hana
